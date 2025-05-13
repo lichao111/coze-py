@@ -87,7 +87,7 @@ def handle_stream(stream: Stream[ChatEvent]):
             for tool_call in tool_calls:
                 print(f"function call: {tool_call.function.name} {tool_call.function.arguments}")
                 local_function = LocalPluginMocker.get_function(tool_call.function.name)
-                output = json.dumps({"output": local_function()})
+                output = json.dumps({"result": local_function()})
                 tool_outputs.append(ToolOutput(tool_call_id=tool_call.id, output=output))
 
             handle_stream(

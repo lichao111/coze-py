@@ -204,11 +204,12 @@ if __name__ == "__main__":
     # Record and chat with audio
     print("Stop by pressing Ctrl-C ...")
 
-    input_device_index = select_input_device()
+    #input_device_index = select_input_device()
 
     conversation_id = create_conversation()
 
     while True:
-        audio_file_path = record_audio(input_device_index)
+        #audio_file_path = record_audio(input_device_index)
+        audio_file_path = "/home/leeco/workspace/coze-py/output.wav"
         wav_audio_path = chat_with_audio(audio_file_path, conversation_id)
-        play_audio(wav_audio_path)
+        #play_audio(wav_audio_path)

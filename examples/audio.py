@@ -41,6 +41,6 @@ input_text = os.getenv("COZE_SPEECH_INPUT") or "你好世界"
 voice_id = get_voice_id()
 
 speech_file = coze.audio.speech.create(input=input_text, voice_id=voice_id)
-file_path = os.path.join(os.path.expanduser("~"), "Downloads", f"coze_{voice_id}_example.mp3")
+file_path = os.path.join(os.path.expanduser("."), f"coze_{voice_id}_example.wav")
 speech_file.write_to_file(file_path)
 print(f"Create speech of voice: {voice_id} to file: {file_path}")

@@ -108,6 +108,6 @@ for event in coze.chat.stream(
     elif event.event == ChatEventType.CONVERSATION_AUDIO_DELTA:
         pcm_datas += base64.b64decode(event.message.content)
 
-wav_audio_path = os.path.join(os.path.expanduser("~"), "Downloads", "coze_response_audio.wav")
+wav_audio_path = os.path.join(os.path.expanduser("."), "coze_response_audio.wav")
 write_pcm_to_wav_file(pcm_datas, wav_audio_path)
 print(f"\nGet audio response from chat stream, save to {wav_audio_path}")

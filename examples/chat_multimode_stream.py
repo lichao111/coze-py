@@ -54,7 +54,7 @@ user_id = "user id"
 
 # Call the upload interface to upload a picture requiring text recognition, and
 # obtain the file_id of the picture.
-file_path = sys.argv[1] if len(sys.argv) > 1 else "/path/image.jpg"
+file_path = sys.argv[1] if len(sys.argv) > 1 else "/home/leeco/workspace/coze-py/123361744612016_.pic.jpg"
 file = coze.files.upload(file=Path(file_path))
 
 # Call the coze.chat.stream method to create a chat. The create method is a streaming
