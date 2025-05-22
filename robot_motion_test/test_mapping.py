@@ -7,7 +7,7 @@ import os
 import time
 from typing import List, Optional
 import logging
-
+from tqdm import tqdm
 # Set up logging
 logging.basicConfig(
     level=logging.INFO,
@@ -162,7 +162,9 @@ if __name__ == "__main__":
 
     result_json = os.path.join(os.path.dirname(__file__), "test_data/result_mapping.json")
     result = {}
-    for input in inputs:
+    total_count = len(inputs) * 2
+    failed_count = 0
+    for input in tqdm(inputs, desc="Processing", unit="input"):
         logging.info(f"=======>inputs: {input}<=========")
         conversation_id = ''
         mapping_start_message = input.get("start")
@@ -181,8 +183,9 @@ if __name__ == "__main__":
 
         if robot_mapping_status != "started":
             result[mapping_start_message] = "failed"
+            failed_count += 1
+            json.dump(result, open(result_json, "w", encoding="utf-8"), ensure_ascii=False, indent=4)
             
-
         handle_stream(
             coze.chat.stream(
                 bot_id=bot_id,
@@ -196,5 +199,10 @@ if __name__ == "__main__":
 
         if robot_mapping_status != "stopped":
             result[mapping_stop_message] = "failed"
-        logging.info(f"=======>conversation_id: {conversation_id}<=========")
+            failed_count += 1
+            json.dump(result, open(result_json, "w", encoding="utf-8"), ensure_ascii=False, indent=4)
+        logging.info(f"=======>conversation_id: {conversation_id} completed<=========")
+    result["total_count"] = total_count
+    result["failed_count"] = failed_count
+    result["success_rate"] = (total_count - failed_count) / total_count
     json.dump(result, open(result_json, "w", encoding="utf-8"), ensure_ascii=False, indent=4)

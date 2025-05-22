@@ -1,8 +1,11 @@
 {
-    "完成地图创建。": "failed",
     "完成地图扫描。": "failed",
     "完成地图初始化。": "failed",
-    "完成地图记录。": "failed",
-    "停止地图分析。": "failed",
-    "完成地图测绘。": "failed"
+    "退出地图构建模式。": "failed",
+    "启动地图分析。": "failed",
+    "完成地图测绘。": "failed",
+    "关闭地图生成。": "failed",
+    "total_count": 44,
+    "failed_count": 6,
+    "success_rate": 0.8636363636363636
 }
