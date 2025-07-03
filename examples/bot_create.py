@@ -4,6 +4,7 @@ This example is for describing how to create a bot.
 
 import logging
 import os
+import sys
 from typing import Optional
 
 from cozepy import (
@@ -47,15 +48,23 @@ coze = Coze(auth=TokenAuth(token=get_coze_api_token()), base_url=get_coze_api_ba
 workspace_id = os.getenv("COZE_WORKSPACE_ID") or "your workspace id"
 # bot id
 bot_id = os.getenv("COZE_BOT_ID") or "your bot id"
+avatar_path = "" if len(sys.argv) < 2 else sys.argv[1]
 # Whether to print detailed logs
 is_debug = os.getenv("DEBUG")
 
 if is_debug:
     setup_logging(logging.DEBUG)
 
+file_id = None
+if avatar_path:
+    file = coze.files.upload(file=avatar_path)
+    file_id = file.id
+    print("create avatar file: ", avatar_path, file)
+
 bot = coze.bots.create(
     space_id=workspace_id,
     name="test",
+    icon_file_id=file_id,
     suggest_reply_info=BotSuggestReplyInfo(
         reply_mode=SuggestReplyMode.CUSTOMIZED, customized_prompt="generate custom user question reply suggestion"
     ),

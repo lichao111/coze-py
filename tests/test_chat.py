@@ -15,6 +15,7 @@ from cozepy import (
     ChatStatus,
     ChatUsage,
     Coze,
+    CozeAPIError,
     Message,
     MessageObjectString,
     TokenAuth,
@@ -51,6 +52,18 @@ def mock_chat_stream(respx_mock, content: str) -> str:
             200,
             headers={"content-type": "text/event-stream", logid_key(): logid},
             content=content,
+        )
+    )
+    return logid
+
+
+def mock_chat_stream_json_fail(respx_mock) -> str:
+    logid = random_hex(10)
+    respx_mock.post("/v3/chat").mock(
+        httpx.Response(
+            200,
+            headers={"content-type": "application/json", logid_key(): logid},
+            content='{"code":4000,"msg":"json fail"}',
         )
     )
     return logid
@@ -236,6 +249,18 @@ class TestSyncChat:
         with pytest.raises(Exception, match="error event"):
             list(stream)
 
+    def test_sync_chat_stream_json_error(self, respx_mock):
+        coze = Coze(auth=TokenAuth(token="token"))
+
+        with pytest.raises(CozeAPIError, match="code: 4000, msg: json fail"):
+            mock_logid = mock_chat_stream_json_fail(respx_mock)
+            stream = coze.chat.stream(bot_id="bot", user_id="user")
+            assert stream
+            assert stream.response.logid is not None
+            assert stream.response.logid == mock_logid
+
+            list(stream)
+
     def test_sync_chat_stream_failed(self, respx_mock):
         coze = Coze(auth=TokenAuth(token="token"))
 
@@ -260,8 +285,8 @@ class TestSyncChat:
         assert stream.response.logid is not None
         assert stream.response.logid == mock_logid
 
-        with pytest.raises(Exception, match="invalid chat.event: invalid"):
-            list(stream)
+        event = list(stream)[0]
+        assert event.event == ChatEventType.UNKNOWN
 
     def test_sync_chat_retrieve(self, respx_mock):
         coze = Coze(auth=TokenAuth(token="token"))
@@ -433,6 +458,15 @@ class TestAsyncChatConversationMessage:
         with pytest.raises(Exception, match="error event"):
             [event async for event in stream]
 
+    async def test_async_chat_stream_json_error(self, respx_mock):
+        coze = AsyncCoze(auth=AsyncTokenAuth(token="token"))
+        mock_chat_stream_json_fail(respx_mock)
+
+        with pytest.raises(CozeAPIError, match="code: 4000, msg: json fail"):
+            stream = coze.chat.stream(bot_id="bot", user_id="user")
+            assert stream
+            [event async for event in stream]
+
     async def test_async_chat_stream_failed(self, respx_mock):
         coze = AsyncCoze(auth=AsyncTokenAuth(token="token"))
 
@@ -451,8 +485,9 @@ class TestAsyncChatConversationMessage:
 
         stream = coze.chat.stream(bot_id="bot", user_id="user")
         assert stream
-        with pytest.raises(Exception, match="invalid chat.event: invalid"):
-            [event async for event in stream]
+
+        event = [event async for event in stream][0]
+        assert event.event == ChatEventType.UNKNOWN
 
     async def test_async_chat_retrieve(self, respx_mock):
         coze = AsyncCoze(auth=AsyncTokenAuth(token="token"))

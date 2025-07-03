@@ -1,15 +1,17 @@
 """
-This example is about how to list workspaces.
+This example is for describing how to list voiceprint group feature.
 """
 
+import logging
 import os
 from typing import Optional
 
 from cozepy import (
     COZE_CN_BASE_URL,
     Coze,
-    DeviceOAuthApp,  # noqa
+    DeviceOAuthApp,
     TokenAuth,
+    setup_logging,
 )
 
 
@@ -39,9 +41,22 @@ def get_coze_api_token(workspace_id: Optional[str] = None) -> str:
 
 # Init the Coze client through the access_token.
 coze = Coze(auth=TokenAuth(token=get_coze_api_token()), base_url=get_coze_api_base())
-# Call the api to get workspace list.
-workspaces = coze.workspaces.list()
-for workspace in workspaces:
-    # workspaces is an iterator. Traversing workspaces will automatically turn pages and
-    # get all workspace results.
-    print("Get workspace", workspace.id, workspace.name)
+# voiceprint group id
+voiceprint_group_id = os.getenv("COZE_VOICEPRINT_GROUP_ID")
+
+
+def setup_examples_logger():
+    coze_log = os.getenv("COZE_LOG")
+    if coze_log:
+        setup_logging(logging.getLevelNamesMapping().get(coze_log.upper(), logging.INFO))
+
+
+setup_examples_logger()
+
+
+list_voiceprint_group_feature_resp = coze.audio.voiceprint_groups.features.list(
+    group_id=voiceprint_group_id,
+)
+for item in list_voiceprint_group_feature_resp:
+    print(item.model_dump_json(indent=2))
+print("logid", list_voiceprint_group_feature_resp.response.logid)

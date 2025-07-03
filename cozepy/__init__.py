@@ -1,7 +1,23 @@
+from .apps import SimpleApp
+from .audio.live import LiveInfo, LiveType, StreamInfo
 from .audio.rooms import CreateRoomResp
 from .audio.speech import AudioFormat
 from .audio.transcriptions import CreateTranscriptionsResp
-from .audio.voices import Voice
+from .audio.voiceprint_groups import (
+    CreateVoicePrintGroupResp,
+    DeleteVoicePrintGroupResp,
+    FeatureScore,
+    SpeakerIdentifyResp,
+    UpdateVoicePrintGroupResp,
+    VoicePrintGroup,
+)
+from .audio.voiceprint_groups.features import (
+    CreateVoicePrintGroupFeatureResp,
+    DeleteVoicePrintGroupFeatureResp,
+    UpdateVoicePrintGroupFeatureResp,
+    VoicePrintGroupFeature,
+)
+from .audio.voices import Voice, VoiceModelType, VoiceState
 from .auth import (
     AsyncAuth,
     AsyncDeviceOAuthApp,
@@ -35,11 +51,18 @@ from .bots import (
     BotPluginInfo,
     BotPromptInfo,
     BotSuggestReplyInfo,
+    BotVariable,
+    BotVoiceInfo,
+    BotWorkflowInfo,
     CanvasPosition,
     GradientPosition,
+    PublishStatus,
     SimpleBot,
     SuggestReplyMode,
     UpdateBotResp,
+    UserInputType,
+    VariableChannel,
+    VariableType,
 )
 from .chat import (
     Chat,
@@ -103,6 +126,7 @@ from .model import (
 from .request import AsyncHTTPClient, SyncHTTPClient
 from .templates import TemplateDuplicateResp, TemplateEntityType
 from .users import User
+from .variables import UpdateVariableResp, VariableValue
 from .version import VERSION
 from .websockets.audio.speech import (
     AsyncWebsocketsAudioSpeechClient,
@@ -112,6 +136,8 @@ from .websockets.audio.speech import (
     InputTextBufferCompleteEvent,
     SpeechAudioCompletedEvent,
     SpeechAudioUpdateEvent,
+    SpeechCreatedEvent,
+    SpeechUpdatedEvent,
     SpeechUpdateEvent,
     WebsocketsAudioSpeechClient,
     WebsocketsAudioSpeechEventHandler,
@@ -120,10 +146,14 @@ from .websockets.audio.transcriptions import (
     AsyncWebsocketsAudioTranscriptionsClient,
     AsyncWebsocketsAudioTranscriptionsEventHandler,
     InputAudioBufferAppendEvent,
+    InputAudioBufferClearedEvent,
+    InputAudioBufferClearEvent,
     InputAudioBufferCompletedEvent,
     InputAudioBufferCompleteEvent,
+    TranscriptionsCreatedEvent,
     TranscriptionsMessageCompletedEvent,
     TranscriptionsMessageUpdateEvent,
+    TranscriptionsUpdatedEvent,
     TranscriptionsUpdateEvent,
     WebsocketsAudioTranscriptionsClient,
     WebsocketsAudioTranscriptionsEventHandler,
@@ -131,21 +161,34 @@ from .websockets.audio.transcriptions import (
 from .websockets.chat import (
     AsyncWebsocketsChatClient,
     AsyncWebsocketsChatEventHandler,
+    ChatCreatedEvent,
+    ChatUpdatedEvent,
     ChatUpdateEvent,
+    ConversationAudioCompletedEvent,
     ConversationAudioDeltaEvent,
     ConversationAudioTranscriptCompletedEvent,
+    ConversationAudioTranscriptUpdateEvent,
     ConversationChatCanceledEvent,
     ConversationChatCancelEvent,
     ConversationChatCompletedEvent,
     ConversationChatCreatedEvent,
+    ConversationChatFailedEvent,
+    ConversationChatInProgressEvent,
     ConversationChatRequiresActionEvent,
     ConversationChatSubmitToolOutputsEvent,
+    ConversationClear,
+    ConversationClearedEvent,
+    ConversationMessageCompletedEvent,
+    ConversationMessageCreateEvent,
     ConversationMessageDeltaEvent,
+    InputAudioBufferSpeechStartedEvent,
+    InputAudioBufferSpeechStoppedEvent,
     WebsocketsChatClient,
     WebsocketsChatEventHandler,
 )
 from .websockets.ws import (
     InputAudio,
+    LimitConfig,
     OpusConfig,
     OutputAudio,
     PCMConfig,
@@ -153,6 +196,7 @@ from .websockets.ws import (
     WebsocketsEvent,
     WebsocketsEventType,
 )
+from .workflows import WorkflowInfo, WorkflowMode
 from .workflows.runs import (
     WorkflowEvent,
     WorkflowEventError,
@@ -162,18 +206,46 @@ from .workflows.runs import (
     WorkflowEventType,
     WorkflowRunResult,
 )
-from .workflows.runs.run_histories import WorkflowExecuteStatus, WorkflowRunHistory, WorkflowRunMode
+from .workflows.runs.run_histories import (
+    WorkflowExecuteStatus,
+    WorkflowRunHistory,
+    WorkflowRunHistoryNodeExecuteStatus,
+    WorkflowRunMode,
+)
+from .workflows.runs.run_histories.execute_nodes import WorkflowNodeExecuteHistory
 from .workspaces import Workspace, WorkspaceRoleType, WorkspaceType
+from .workspaces.members import CreateWorkspaceMemberResp, DeleteWorkspaceMemberResp, WorkspaceMember
 
 __all__ = [
     "VERSION",
+    # audio.live
+    "LiveInfo",
+    "StreamInfo",
+    "LiveType",
+    # apps
+    "SimpleApp",
+    # audio
     # audio.rooms
     "CreateRoomResp",
     # audio.voices
+    "VoiceState",
+    "VoiceModelType",
     "Voice",
     "AudioFormat",
     # audio.transcriptions
     "CreateTranscriptionsResp",
+    # audio.voiceprint_groups
+    "CreateVoicePrintGroupResp",
+    "DeleteVoicePrintGroupResp",
+    "FeatureScore",
+    "SpeakerIdentifyResp",
+    "UpdateVoicePrintGroupResp",
+    "VoicePrintGroup",
+    # audio.voiceprint_groups.features
+    "VoicePrintGroupFeature",
+    "CreateVoicePrintGroupFeatureResp",
+    "UpdateVoicePrintGroupFeatureResp",
+    "DeleteVoicePrintGroupFeatureResp",
     # auth
     "load_oauth_app_from_config",
     "AsyncDeviceOAuthApp",
@@ -196,21 +268,28 @@ __all__ = [
     "TokenAuth",
     "WebOAuthApp",
     # bots
-    "BotPromptInfo",
-    "BotOnboardingInfo",
+    "BackgroundImageInfo",
+    "Bot",
+    "BotBackgroundImageInfo",
     "BotKnowledge",
     "BotModelInfo",
+    "BotOnboardingInfo",
     "BotPluginAPIInfo",
     "BotPluginInfo",
-    "SuggestReplyMode",
+    "BotPromptInfo",
     "BotSuggestReplyInfo",
-    "GradientPosition",
+    "BotVariable",
+    "BotVoiceInfo",
+    "BotWorkflowInfo",
     "CanvasPosition",
-    "BackgroundImageInfo",
-    "BotBackgroundImageInfo",
-    "Bot",
+    "GradientPosition",
+    "PublishStatus",
     "SimpleBot",
+    "SuggestReplyMode",
     "UpdateBotResp",
+    "UserInputType",
+    "VariableChannel",
+    "VariableType",
     # chat
     "MessageRole",
     "MessageType",
@@ -258,6 +337,8 @@ __all__ = [
     "InputTextBufferAppendEvent",
     "InputTextBufferCompleteEvent",
     "SpeechUpdateEvent",
+    "SpeechCreatedEvent",
+    "SpeechUpdatedEvent",
     "InputTextBufferCompletedEvent",
     "SpeechAudioUpdateEvent",
     "SpeechAudioCompletedEvent",
@@ -266,10 +347,14 @@ __all__ = [
     "AsyncWebsocketsAudioSpeechEventHandler",
     "AsyncWebsocketsAudioSpeechClient",
     # websockets.audio.transcriptions
+    "TranscriptionsUpdateEvent",
     "InputAudioBufferAppendEvent",
     "InputAudioBufferCompleteEvent",
-    "TranscriptionsUpdateEvent",
+    "InputAudioBufferClearEvent",
+    "TranscriptionsCreatedEvent",
+    "TranscriptionsUpdatedEvent",
     "InputAudioBufferCompletedEvent",
+    "InputAudioBufferClearedEvent",
     "TranscriptionsMessageUpdateEvent",
     "TranscriptionsMessageCompletedEvent",
     "WebsocketsAudioTranscriptionsEventHandler",
@@ -278,15 +363,27 @@ __all__ = [
     "AsyncWebsocketsAudioTranscriptionsClient",
     # websockets.chat
     "ChatUpdateEvent",
+    "ConversationMessageCreateEvent",
+    "ConversationClear",
     "ConversationChatSubmitToolOutputsEvent",
     "ConversationChatCancelEvent",
+    "ChatCreatedEvent",
+    "ChatUpdatedEvent",
     "ConversationChatCreatedEvent",
+    "ConversationChatInProgressEvent",
     "ConversationMessageDeltaEvent",
+    "ConversationMessageCompletedEvent",
+    "ConversationAudioCompletedEvent",
     "ConversationAudioTranscriptCompletedEvent",
     "ConversationChatRequiresActionEvent",
+    "InputAudioBufferSpeechStartedEvent",
+    "InputAudioBufferSpeechStoppedEvent",
     "ConversationAudioDeltaEvent",
     "ConversationChatCompletedEvent",
+    "ConversationChatFailedEvent",
+    "ConversationClearedEvent",
     "ConversationChatCanceledEvent",
+    "ConversationAudioTranscriptUpdateEvent",
     "WebsocketsChatEventHandler",
     "WebsocketsChatClient",
     "AsyncWebsocketsChatEventHandler",
@@ -295,10 +392,14 @@ __all__ = [
     "WebsocketsEventType",
     "WebsocketsEvent",
     "WebsocketsErrorEvent",
+    "LimitConfig",
     "InputAudio",
     "OpusConfig",
     "PCMConfig",
     "OutputAudio",
+    # workflows
+    "WorkflowInfo",
+    "WorkflowMode",
     # workflows.runs
     "WorkflowRunResult",
     "WorkflowEventType",
@@ -311,15 +412,25 @@ __all__ = [
     "WorkflowExecuteStatus",
     "WorkflowRunMode",
     "WorkflowRunHistory",
+    "WorkflowRunHistoryNodeExecuteStatus",
+    # workflows.runs.run_histories.execute_nodes
+    "WorkflowNodeExecuteHistory",
     # workspaces
     "WorkspaceRoleType",
     "WorkspaceType",
     "Workspace",
+    # workspaces.members
+    "CreateWorkspaceMemberResp",
+    "DeleteWorkspaceMemberResp",
+    "WorkspaceMember",
     # templates
     "TemplateDuplicateResp",
     "TemplateEntityType",
     # users
     "User",
+    # variables
+    "VariableValue",
+    "UpdateVariableResp",
     # log
     "setup_logging",
     # config

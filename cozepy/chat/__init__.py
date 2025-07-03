@@ -1,21 +1,29 @@
 import base64
 import json
 import time
-from enum import Enum
-from typing import TYPE_CHECKING, AsyncIterator, Dict, List, Optional, Union, overload
+from typing import TYPE_CHECKING, Any, AsyncIterator, Dict, List, Optional, Union, overload
 
 import httpx
 from typing_extensions import Literal
 
-from cozepy.model import AsyncIteratorHTTPResponse, AsyncStream, CozeModel, IteratorHTTPResponse, ListResponse, Stream
+from cozepy.exception import CozeAPIError
+from cozepy.model import (
+    AsyncIteratorHTTPResponse,
+    AsyncStream,
+    CozeModel,
+    DynamicStrEnum,
+    IteratorHTTPResponse,
+    ListResponse,
+    Stream,
+)
 from cozepy.request import Requester
-from cozepy.util import remove_url_trailing_slash
+from cozepy.util import remove_none_values, remove_url_trailing_slash
 
 if TYPE_CHECKING:
     from .message import AsyncChatMessagesClient, ChatMessagesClient
 
 
-class MessageRole(str, Enum):
+class MessageRole(DynamicStrEnum):
     # Indicates that the content of the message is sent by the user.
     USER = "user"
 
@@ -23,7 +31,7 @@ class MessageRole(str, Enum):
     ASSISTANT = "assistant"
 
 
-class MessageType(str, Enum):
+class MessageType(DynamicStrEnum):
     UNKNOWN = ""
 
     # User input content.
@@ -55,7 +63,7 @@ class MessageType(str, Enum):
     VERBOSE = "verbose"
 
 
-class MessageContentType(str, Enum):
+class MessageContentType(DynamicStrEnum):
     # Text.
     # 文本。
     TEXT = "text"
@@ -76,7 +84,7 @@ class MessageContentType(str, Enum):
     AUDIO = "audio"
 
 
-class MessageObjectStringType(str, Enum):
+class MessageObjectStringType(DynamicStrEnum):
     """
     The content type of the multimodal message.
     """
@@ -194,7 +202,7 @@ class Message(CozeModel):
         return b""
 
 
-class ChatStatus(str, Enum):
+class ChatStatus(DynamicStrEnum):
     """
     The running status of the session
     """
@@ -227,12 +235,12 @@ class ChatError(CozeModel):
     msg: str = ""
 
 
-class ChatRequiredActionType(str, Enum):
+class ChatRequiredActionType(DynamicStrEnum):
     UNKNOWN = ""
     SUBMIT_TOOL_OUTPUTS = "submit_tool_outputs"
 
 
-class ChatToolCallType(str, Enum):
+class ChatToolCallType(DynamicStrEnum):
     FUNCTION = "function"
     REPLY_MESSAGE = "reply_message"
 
@@ -326,7 +334,7 @@ class ChatPoll(CozeModel):
     messages: Optional[ListResponse[Message]] = None
 
 
-class ChatEventType(str, Enum):
+class ChatEventType(DynamicStrEnum):
     # Event for creating a conversation, indicating the start of the conversation.
     # 创建对话的事件，表示对话开始。
     CONVERSATION_CHAT_CREATED = "conversation.chat.created"
@@ -370,21 +378,22 @@ class ChatEventType(str, Enum):
     # 本次会话的流式返回正常结束。
     DONE = "done"
 
+    UNKNOWN = "unknown"  # 默认的未知值
+
 
 class ChatEvent(CozeModel):
     # logid: str
     event: ChatEventType
     chat: Optional[Chat] = None
     message: Optional[Message] = None
+    unknown: Optional[Dict] = None
 
 
-def _chat_stream_handler(data: Dict, raw_response: httpx.Response, is_async: bool = False) -> ChatEvent:
+def _chat_stream_handler(data: Dict, raw_response: httpx.Response) -> Optional[ChatEvent]:
     event = data["event"]
     event_data = data["data"]  # type: str
     if event == ChatEventType.DONE:
-        if is_async:
-            raise StopAsyncIteration
-        raise StopIteration
+        return None
     elif event == ChatEventType.ERROR:
         raise Exception(f"error event: {event_data}")  # TODO: error struct format
     elif event in [
@@ -406,23 +415,16 @@ def _chat_stream_handler(data: Dict, raw_response: httpx.Response, is_async: boo
         event._raw_response = raw_response
         return event
     else:
-        raise ValueError(f"invalid chat.event: {event}, {data}")
-
-
-def _sync_chat_stream_handler(data: Dict, raw_response: httpx.Response) -> ChatEvent:
-    return _chat_stream_handler(data, raw_response=raw_response, is_async=False)
-
-
-def _async_chat_stream_handler(data: Dict, raw_response: httpx.Response) -> ChatEvent:
-    return _chat_stream_handler(data, raw_response=raw_response, is_async=True)
+        event = ChatEvent(event=ChatEventType.UNKNOWN, unknown=data)
+        event._raw_response = raw_response
+        return event
 
 
 class ToolOutput(CozeModel):
-    # The ID for reporting the running results. You can get this ID under the tool_calls field in response of the Chat
-    # API.
+    # 上报运行结果的 ID。你可以在扣子智能语音对话信令事件的 tool_calls 字段下查看此 ID。
     tool_call_id: str
 
-    # The execution result of the tool.
+    # 工具的执行结果。
     output: str
 
 
@@ -442,6 +444,7 @@ class ChatClient(object):
         custom_variables: Optional[Dict[str, str]] = None,
         auto_save_history: bool = True,
         meta_data: Optional[Dict[str, str]] = None,
+        parameters: Optional[Dict[str, Any]] = None,
     ) -> Chat:
         """
         Call the Chat API with non-streaming to send messages to a published Coze bot.
@@ -458,6 +461,7 @@ class ChatClient(object):
         :param custom_variables: The customized variable in a key-value pair.
         :param auto_save_history: Whether to automatically save the history of conversation records.
         :param meta_data: Additional information, typically used to encapsulate some business-related fields.
+        :param parameters: Additional parameters for the chat API. pass through to the workflow.
         :return: chat object
         """
         return self._create(
@@ -469,6 +473,7 @@ class ChatClient(object):
             auto_save_history=auto_save_history,
             meta_data=meta_data,
             conversation_id=conversation_id,
+            parameters=parameters,
         )
 
     def stream(
@@ -481,6 +486,8 @@ class ChatClient(object):
         auto_save_history: bool = True,
         meta_data: Optional[Dict[str, str]] = None,
         conversation_id: Optional[str] = None,
+        parameters: Optional[Dict[str, Any]] = None,
+        enable_card: Optional[bool] = None,
         **kwargs,
     ) -> Stream[ChatEvent]:
         """
@@ -498,6 +505,7 @@ class ChatClient(object):
         :param custom_variables: The customized variable in a key-value pair.
         :param auto_save_history: Whether to automatically save the history of conversation records.
         :param meta_data: Additional information, typically used to encapsulate some business-related fields.
+        :param parameters: Additional parameters for the chat API. pass through to the workflow.
         :return: iterator of ChatEvent
         """
         return self._create(
@@ -509,6 +517,8 @@ class ChatClient(object):
             auto_save_history=auto_save_history,
             meta_data=meta_data,
             conversation_id=conversation_id,
+            parameters=parameters,
+            enable_card=enable_card,
             **kwargs,
         )
 
@@ -523,6 +533,7 @@ class ChatClient(object):
         auto_save_history: bool = True,
         meta_data: Optional[Dict[str, str]] = None,
         poll_timeout: Optional[int] = None,
+        parameters: Optional[Dict[str, Any]] = None,
     ) -> ChatPoll:
         """
         Call the Chat API with non-streaming to send messages to a published Coze bot and
@@ -541,6 +552,7 @@ class ChatClient(object):
         :param auto_save_history: Whether to automatically save the history of conversation records.
         :param meta_data: Additional information, typically used to encapsulate some business-related fields.
         :param poll_timeout: poll timeout in seconds
+        :param parameters: Additional parameters for the chat API. pass through to the workflow.
         :return: chat object
         """
         chat = self.create(
@@ -551,15 +563,23 @@ class ChatClient(object):
             custom_variables=custom_variables,
             auto_save_history=auto_save_history,
             meta_data=meta_data,
+            parameters=parameters,
         )
 
         start = int(time.time())
         interval = 1
         while chat.status == ChatStatus.IN_PROGRESS:
             if poll_timeout is not None and int(time.time()) - start > poll_timeout:
-                # too long, cancel chat
-                self.cancel(conversation_id=chat.conversation_id, chat_id=chat.id)
-                return ChatPoll(chat=chat)
+                try:
+                    # too long, cancel chat
+                    self.cancel(conversation_id=chat.conversation_id, chat_id=chat.id)
+                    return ChatPoll(chat=chat)
+                except CozeAPIError as e:
+                    if e.code == 4104:
+                        # The current conversation can't be canceled, re-retrieve the chat and continue polling.
+                        chat = self.retrieve(conversation_id=chat.conversation_id, chat_id=chat.id)
+                        continue
+                    raise e
 
             time.sleep(interval)
             chat = self.retrieve(conversation_id=chat.conversation_id, chat_id=chat.id)
@@ -579,6 +599,8 @@ class ChatClient(object):
         auto_save_history: bool = ...,
         meta_data: Optional[Dict[str, str]] = ...,
         conversation_id: Optional[str] = ...,
+        parameters: Optional[Dict[str, Any]] = ...,
+        enable_card: Optional[bool] = ...,
     ) -> Stream[ChatEvent]: ...
 
     @overload
@@ -593,6 +615,8 @@ class ChatClient(object):
         auto_save_history: bool = ...,
         meta_data: Optional[Dict[str, str]] = ...,
         conversation_id: Optional[str] = ...,
+        parameters: Optional[Dict[str, Any]] = ...,
+        enable_card: Optional[bool] = ...,
     ) -> Chat: ...
 
     def _create(
@@ -606,25 +630,30 @@ class ChatClient(object):
         auto_save_history: bool = True,
         meta_data: Optional[Dict[str, str]] = None,
         conversation_id: Optional[str] = None,
+        parameters: Optional[Dict[str, Any]] = None,
+        enable_card: Optional[bool] = None,
         **kwargs,
     ) -> Union[Chat, Stream[ChatEvent]]:
         """
-        Create a conversation.
-        Conversation is an interaction between a bot and a user, including one or more messages.
+        Create a chat.
         """
         url = f"{self._base_url}/v3/chat"
         params = {
             "conversation_id": conversation_id if conversation_id else None,
         }
-        body = {
-            "bot_id": bot_id,
-            "user_id": user_id,
-            "additional_messages": [i.model_dump() for i in additional_messages] if additional_messages else [],
-            "stream": stream,
-            "custom_variables": custom_variables,
-            "auto_save_history": auto_save_history,
-            "meta_data": meta_data,
-        }
+        body = remove_none_values(
+            {
+                "bot_id": bot_id,
+                "user_id": user_id,
+                "additional_messages": [i.model_dump() for i in additional_messages] if additional_messages else [],
+                "stream": stream,
+                "custom_variables": custom_variables,
+                "auto_save_history": auto_save_history,
+                "meta_data": meta_data,
+                "parameters": parameters,
+                "enable_card": enable_card,
+            }
+        )
         headers: Optional[dict] = kwargs.get("headers")
         if not stream:
             return self._requester.request(
@@ -650,7 +679,7 @@ class ChatClient(object):
             response._raw_response,
             response.data,
             fields=["event", "data"],
-            handler=_sync_chat_stream_handler,
+            handler=_chat_stream_handler,
         )
 
     def retrieve(
@@ -723,7 +752,7 @@ class ChatClient(object):
             params=params,
             body=body,
         )
-        return Stream(resp._raw_response, resp.data, fields=["event", "data"], handler=_sync_chat_stream_handler)
+        return Stream(resp._raw_response, resp.data, fields=["event", "data"], handler=_chat_stream_handler)
 
     def cancel(
         self,
@@ -777,6 +806,7 @@ class AsyncChatClient(object):
         custom_variables: Optional[Dict[str, str]] = None,
         auto_save_history: bool = True,
         meta_data: Optional[Dict[str, str]] = None,
+        parameters: Optional[Dict[str, Any]] = None,
     ) -> Chat:
         """
         Call the Chat API with non-streaming to send messages to a published Coze bot.
@@ -793,6 +823,7 @@ class AsyncChatClient(object):
         :param custom_variables: The customized variable in a key-value pair.
         :param auto_save_history: Whether to automatically save the history of conversation records.
         :param meta_data: Additional information, typically used to encapsulate some business-related fields.
+        :param parameters: Additional parameters for the chat API. pass through to the workflow.
         :return: chat object
         """
         return await self._create(
@@ -804,6 +835,7 @@ class AsyncChatClient(object):
             auto_save_history=auto_save_history,
             meta_data=meta_data,
             conversation_id=conversation_id,
+            parameters=parameters,
         )
 
     async def stream(
@@ -816,6 +848,9 @@ class AsyncChatClient(object):
         auto_save_history: bool = True,
         meta_data: Optional[Dict[str, str]] = None,
         conversation_id: Optional[str] = None,
+        parameters: Optional[Dict[str, Any]] = None,
+        enable_card: Optional[bool] = None,
+        **kwargs,
     ) -> AsyncIterator[ChatEvent]:
         """
         Call the Chat API with streaming to send messages to a published Coze bot.
@@ -832,6 +867,7 @@ class AsyncChatClient(object):
         :param custom_variables: The customized variable in a key-value pair.
         :param auto_save_history: Whether to automatically save the history of conversation records.
         :param meta_data: Additional information, typically used to encapsulate some business-related fields.
+        :param parameters: Additional parameters for the chat API. pass through to the workflow.
         :return: iterator of ChatEvent
         """
         async for item in await self._create(
@@ -843,6 +879,9 @@ class AsyncChatClient(object):
             auto_save_history=auto_save_history,
             meta_data=meta_data,
             conversation_id=conversation_id,
+            parameters=parameters,
+            enable_card=enable_card,
+            **kwargs,
         ):
             yield item
 
@@ -858,6 +897,8 @@ class AsyncChatClient(object):
         auto_save_history: bool = ...,
         meta_data: Optional[Dict[str, str]] = ...,
         conversation_id: Optional[str] = ...,
+        parameters: Optional[Dict[str, Any]] = ...,
+        enable_card: Optional[bool] = ...,
     ) -> AsyncStream[ChatEvent]: ...
 
     @overload
@@ -872,6 +913,8 @@ class AsyncChatClient(object):
         auto_save_history: bool = ...,
         meta_data: Optional[Dict[str, str]] = ...,
         conversation_id: Optional[str] = ...,
+        parameters: Optional[Dict[str, Any]] = ...,
+        enable_card: Optional[bool] = ...,
     ) -> Chat: ...
 
     async def _create(
@@ -885,6 +928,9 @@ class AsyncChatClient(object):
         auto_save_history: bool = True,
         meta_data: Optional[Dict[str, str]] = None,
         conversation_id: Optional[str] = None,
+        parameters: Optional[Dict[str, Any]] = None,
+        enable_card: Optional[bool] = None,
+        **kwargs,
     ) -> Union[Chat, AsyncStream[ChatEvent]]:
         """
         Create a conversation.
@@ -894,15 +940,20 @@ class AsyncChatClient(object):
         params = {
             "conversation_id": conversation_id if conversation_id else None,
         }
-        body = {
-            "bot_id": bot_id,
-            "user_id": user_id,
-            "additional_messages": [i.model_dump() for i in additional_messages] if additional_messages else [],
-            "stream": stream,
-            "custom_variables": custom_variables,
-            "auto_save_history": auto_save_history,
-            "meta_data": meta_data,
-        }
+        body = remove_none_values(
+            {
+                "bot_id": bot_id,
+                "user_id": user_id,
+                "additional_messages": [i.model_dump() for i in additional_messages] if additional_messages else [],
+                "stream": stream,
+                "custom_variables": custom_variables,
+                "auto_save_history": auto_save_history,
+                "meta_data": meta_data,
+                "parameters": parameters,
+                "enable_card": enable_card,
+            }
+        )
+        headers: Optional[dict] = kwargs.get("headers")
         if not stream:
             return await self._requester.arequest(
                 "post",
@@ -911,6 +962,7 @@ class AsyncChatClient(object):
                 Chat,
                 params=params,
                 body=body,
+                headers=headers,
             )
 
         resp: AsyncIteratorHTTPResponse[str] = await self._requester.arequest(
@@ -920,10 +972,11 @@ class AsyncChatClient(object):
             None,
             params=params,
             body=body,
+            headers=headers,
         )
 
         return AsyncStream(
-            resp.data, fields=["event", "data"], handler=_async_chat_stream_handler, raw_response=resp._raw_response
+            resp.data, fields=["event", "data"], handler=_chat_stream_handler, raw_response=resp._raw_response
         )
 
     async def retrieve(
@@ -1028,7 +1081,7 @@ class AsyncChatClient(object):
             "post", url, True, None, params=params, body=body
         )
         return AsyncStream(
-            resp.data, fields=["event", "data"], handler=_async_chat_stream_handler, raw_response=resp._raw_response
+            resp.data, fields=["event", "data"], handler=_chat_stream_handler, raw_response=resp._raw_response
         )
 
     async def cancel(

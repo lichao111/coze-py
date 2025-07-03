@@ -44,6 +44,8 @@ class WorkflowEventType(str, Enum):
     # 中断。表示工作流中断，此时 data 字段中包含具体的中断信息。
     INTERRUPT = "Interrupt"
 
+    UNKNOWN = "unknown"  # 默认的未知值
+
 
 class WorkflowEventMessage(CozeModel):
     # The content of the streamed output message.
@@ -111,17 +113,15 @@ class WorkflowEvent(CozeModel):
 
     error: Optional[WorkflowEventError] = None
 
+    unknown: Optional[Dict] = None
 
-def _workflow_stream_handler(
-    data: Dict[str, str], raw_response: httpx.Response, is_async: bool = False
-) -> WorkflowEvent:
+
+def _workflow_stream_handler(data: Dict[str, str], raw_response: httpx.Response) -> Optional[WorkflowEvent]:
     id = int(data["id"])
     event = data["event"]
     event_data = data["data"]  # type: str
     if event == WorkflowEventType.DONE:
-        if is_async:
-            raise StopAsyncIteration
-        raise StopIteration
+        return None
     elif event == WorkflowEventType.MESSAGE:
         return WorkflowEvent(
             id=id,
@@ -137,15 +137,7 @@ def _workflow_stream_handler(
             interrupt=WorkflowEventInterrupt.model_validate_json(event_data),
         )
     else:
-        raise ValueError(f"invalid workflows.event: {event}, {event_data}")
-
-
-def _sync_workflow_stream_handler(data: Dict[str, str], raw_response: httpx.Response) -> WorkflowEvent:
-    return _workflow_stream_handler(data, raw_response=raw_response, is_async=False)
-
-
-def _async_workflow_stream_handler(data: Dict[str, str], raw_response: httpx.Response) -> WorkflowEvent:
-    return _workflow_stream_handler(data, raw_response=raw_response, is_async=True)
+        return WorkflowEvent(id=id, event=WorkflowEventType.UNKNOWN, unknown=data)
 
 
 class WorkflowsRunsClient(object):
@@ -233,9 +225,7 @@ class WorkflowsRunsClient(object):
             None,
             body=remove_none_values(body),
         )
-        return Stream(
-            resp._raw_response, resp.data, fields=["id", "event", "data"], handler=_sync_workflow_stream_handler
-        )
+        return Stream(resp._raw_response, resp.data, fields=["id", "event", "data"], handler=_workflow_stream_handler)
 
     def resume(
         self,
@@ -268,9 +258,7 @@ class WorkflowsRunsClient(object):
             None,
             body=body,
         )
-        return Stream(
-            resp._raw_response, resp.data, fields=["id", "event", "data"], handler=_sync_workflow_stream_handler
-        )
+        return Stream(resp._raw_response, resp.data, fields=["id", "event", "data"], handler=_workflow_stream_handler)
 
     @property
     def run_histories(self) -> "WorkflowsRunsRunHistoriesClient":
@@ -369,7 +357,7 @@ class AsyncWorkflowsRunsClient(object):
         async for item in AsyncStream(
             resp.data,
             fields=["id", "event", "data"],
-            handler=_async_workflow_stream_handler,
+            handler=_workflow_stream_handler,
             raw_response=resp._raw_response,
         ):
             yield item
@@ -408,7 +396,7 @@ class AsyncWorkflowsRunsClient(object):
         async for item in AsyncStream(
             resp.data,
             fields=["id", "event", "data"],
-            handler=_async_workflow_stream_handler,
+            handler=_workflow_stream_handler,
             raw_response=resp._raw_response,
         ):
             yield item
