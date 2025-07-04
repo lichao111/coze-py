@@ -116,13 +116,18 @@ class LocalPluginMocker(object):
 # the `submit_tool_outputs` method needs to be called to submit the running result.
 def handle_stream(stream: Stream[ChatEvent]):
     conversation_id = ''
+    start = time.time()
     for event in stream:
         if event.chat != None:
             conversation_id = event.chat.conversation_id
         if event.event == ChatEventType.CONVERSATION_MESSAGE_DELTA:
+            end = time.time()
+            logging.info(f"message delta time cost {end - start} seconds")
             logging.info(f"message: {event.message.content}")
 
         if event.event == ChatEventType.CONVERSATION_CHAT_REQUIRES_ACTION:
+            logging.info("action time cost %s seconds", time.time() - start)
+            start = time.time()
             if not event.chat.required_action or not event.chat.required_action.submit_tool_outputs:
                 continue
             tool_calls = event.chat.required_action.submit_tool_outputs.tool_calls
