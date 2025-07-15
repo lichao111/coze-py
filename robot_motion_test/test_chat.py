@@ -3,11 +3,12 @@ This example is about how to use the streaming interface to start a chat request
 and handle chat events
 """
 
+import json
 import logging
 import os
-from typing import Optional
+from typing import Optional, List
 
-from cozepy import COZE_CN_BASE_URL, ChatEventType, Coze, DeviceOAuthApp, Message, TokenAuth, setup_logging  # noqa
+from cozepy import COZE_CN_BASE_URL,ChatEvent, ChatEventType, Stream,Coze, DeviceOAuthApp, Message, TokenAuth, setup_logging, ToolOutput  # noqa
 
 
 def get_coze_api_base() -> str:
@@ -52,6 +53,18 @@ if is_debug:
 # chat and will return a Chat Iterator. Developers should iterate the iterator to get
 # chat event and handle them.
 
+def handle_stream(stream: Stream[ChatEvent]) -> None:
+    """
+    Handle the chat stream events.
+    """
+    for event in stream:
+        if event.event == ChatEventType.CONVERSATION_MESSAGE_DELTA:
+            print(event.message.content, end="", flush=True)
+        elif event.event == ChatEventType.CONVERSATION_CHAT_COMPLETED:
+            print("\nChat completed with token usage:", event.chat.usage.token_count)
+        elif event.event == ChatEventType.CONVERSATION_CHAT_REQUIRES_ACTION:
+            print("Chat requires action:", event.chat.required_action.submit_tool_outputs.tool_calls)
+
 conversation_id = ""
 def run_chat_stream(input: str):
     is_first_reasoning_content = True
@@ -82,9 +95,29 @@ def run_chat_stream(input: str):
             print("token usage:", event.chat.usage.token_count)
         if event.chat != None:
             conversation_id = event.chat.conversation_id
+        
+        if event.event == ChatEventType.CONVERSATION_CHAT_REQUIRES_ACTION:
+            tool_calls = event.chat.required_action.submit_tool_outputs.tool_calls
+            tool_outputs: List[ToolOutput] = []
+            for tool_call in tool_calls:
+                logging.info(f"function call: {tool_call.function.name} {tool_call.function.arguments}")
+                if tool_call.function.arguments == '':
+                    # If the function does not require any arguments, pass an empty string.
+                    output = json.dumps({"response":""})
+                else :
+                    output = json.dumps({"response": ""})
+                tool_outputs.append(ToolOutput(tool_call_id=tool_call.id, output=output))
+
+            handle_stream(coze.chat.submit_tool_outputs(
+                conversation_id=event.chat.conversation_id,
+                chat_id=event.chat.id,
+                tool_outputs=tool_outputs,
+                stream=True,
+            ))
 
 if __name__ == "__main__":
     # Run the chat stream
     run_chat_stream("今天出门我遇到了张三和李四")
     run_chat_stream("你能给我讲个笑话吗")
     run_chat_stream("你知道我今天出门遇到了谁吗")
+    run_chat_stream("我不想聊天了")
