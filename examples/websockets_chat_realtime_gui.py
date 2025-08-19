@@ -22,6 +22,8 @@ from cozepy import (
     ConversationChatCanceledEvent,
     InputAudio,
     InputAudioBufferAppendEvent,
+    InputAudioBufferSpeechStoppedEvent,
+    InputAudioBufferSpeechStartedEvent,
     TokenAuth,
     setup_logging,
 )
@@ -70,7 +72,7 @@ class ModernAudioChatGUI:
 
         # 初始化Coze客户端
         self.coze = AsyncCoze(
-            auth=TokenAuth(os.getenv("COZE_API_TOKEN")),
+            auth=TokenAuth("pat_fnye9hSGk7Q4vyEZdMzRQp1naGdIDuK9X6VmkuiFNqEi6wlikKMtzyf4YZ5KxoUe"),
             base_url=os.getenv("COZE_API_BASE", COZE_CN_BASE_URL),
         )
 
@@ -123,16 +125,10 @@ class ModernAudioChatGUI:
         self.start_button.pack(side=tk.LEFT, padx=5)
 
         # 发送数据按钮
-        self.send_button = ttk.Button(
-            self.button_frame, text="发送", command=self.send_audio, state=tk.DISABLED, style="Custom.TButton"
+        self.stop_button = ttk.Button(
+            self.button_frame, text="结束通话", command=self.end_chat, state=tk.DISABLED, style="Custom.TButton"
         )
-        self.send_button.pack(side=tk.LEFT, padx=5)
-
-        # 结束按钮
-        self.end_button = ttk.Button(
-            self.button_frame, text="结束", command=self.end_chat, state=tk.DISABLED, style="Custom.TButton"
-        )
-        self.end_button.pack(side=tk.LEFT, padx=5)
+        self.stop_button.pack(side=tk.LEFT, padx=5)
 
     def update_chat_display(self, message: str, is_user: bool = True):
         self.chat_display.insert(tk.END, f"{'你' if is_user else 'AI'}: {message}\n")
@@ -140,8 +136,7 @@ class ModernAudioChatGUI:
 
     def start_chat(self):
         self.start_button.config(state=tk.DISABLED)
-        self.send_button.config(state=tk.NORMAL)
-        self.end_button.config(state=tk.NORMAL)
+        self.stop_button.config(state=tk.NORMAL)
 
         # 开始录音
         self.start_recording()
@@ -158,8 +153,7 @@ class ModernAudioChatGUI:
 
         # 重置UI
         self.start_button.config(state=tk.NORMAL)
-        self.send_button.config(state=tk.DISABLED)
-        self.end_button.config(state=tk.DISABLED)
+        self.stop_button.config(state=tk.DISABLED)
         self.status_label.config(text="准备就绪")
         self.update_chat_display("对话已结束", is_user=False)
 
@@ -168,6 +162,7 @@ class ModernAudioChatGUI:
             if self.chat_client:
                 await self.chat_client.close()
                 self.chat_client = None
+                print("WebSocket连接已关闭")
 
         asyncio.run_coroutine_threadsafe(close(), self.loop)
 
@@ -196,8 +191,13 @@ class ModernAudioChatGUI:
             self.recording = False
             self.status_label.config(text="启动录音失败")
             self.start_button.config(state=tk.NORMAL)
-            self.send_button.config(state=tk.DISABLED)
-            self.end_button.config(state=tk.DISABLED)
+            self.stop_button.config(state=tk.DISABLED)
+
+
+    def send_audio(self):
+        return
+        # 发送完成事件
+        # self.loop.call_soon_threadsafe(self.complete_audio)
 
     def audio_callback(self, in_data, frame_count, time_info, status):
         if self.recording:
@@ -213,7 +213,6 @@ class ModernAudioChatGUI:
 
             except Exception as e:
                 print(f"录音回调错误: {e}")
-
         return (None, pyaudio.paContinue)
 
     def stop_recording(self):
@@ -285,14 +284,15 @@ class ModernAudioChatGUI:
                     self, cli: AsyncWebsocketsChatClient, event: ConversationChatCompletedEvent
                 ):
                     try:
+                        print("对话完成")
                         # 关闭临时文件
-                        self.temp_file.close()
+                        #self.temp_file.close()
 
                         # 标记播放结束
-                        self.gui.playback_queue.put(None)
+                        #self.gui.playback_queue.put(None)
 
                         # 重新开始录音
-                        self.gui.root.after(1000, self.gui.resume_recording)
+                        # self.gui.root.after(1000, self.gui.resume_recording)
                     except Exception as e:
                         print(f"完成对话错误: {e}")
 
@@ -301,14 +301,44 @@ class ModernAudioChatGUI:
                 ):
                     try:
                         print("打断")
+                        # 清空带播放队列
+                        self.gui.playback_queue.queue.clear()
                     except Exception as e:
                         print(f"对话打断错误: {e}")
 
+                async def on_input_audio_buffer_speech_started(
+                        self, cli: AsyncWebsocketsChatClient, event: InputAudioBufferSpeechStartedEvent
+                ):
+                    try:
+                        print("开始说话")
+                    except Exception as e:
+                        print(f"开始说话错误: {e}")
+                    
+                async def on_input_audio_buffer_speech_stopped(
+                        self, cli: AsyncWebsocketsChatClient, event: InputAudioBufferSpeechStoppedEvent
+                ):
+                    try:
+                        print("停止说话")
+                    except Exception as e:
+                        print(f"停止说话错误: {e}")
+
             kwargs = json.loads(os.getenv("COZE_KWARGS") or "{}")
             self.chat_client = self.coze.websockets.chat.create(
-                bot_id=os.getenv("COZE_BOT_ID"),
+                bot_id=os.getenv("COZE_BOT_ID", "7526822492665888783"),
                 on_event=ChatEventHandler(self),
                 **kwargs,
+            )
+
+            interrupt_config = ChatUpdateEvent.InterruptConfig(
+                mode=ChatUpdateEvent.InterruptConfigMode.KEYWORD_CONTAINS,  # 或 KEYWORD_PREFIX
+                keywords=["暂停", "等等", "小飞", "停停"]  # 最多5个关键词，每个2-8个汉字
+            )
+
+            turn_detection = ChatUpdateEvent.TurnDetection(
+                type=ChatUpdateEvent.TurnDetectionType.SERVER_VAD,
+                prefix_padding_ms=600,
+                silence_duration_ms=500,
+                interrupt_config=interrupt_config,  # server_vad 模式下打断策略配置
             )
 
             async with self.chat_client() as client:
@@ -322,14 +352,16 @@ class ModernAudioChatGUI:
                                     "channel": CHANNELS,
                                     "bit_depth": 16,
                                     "codec": "pcm",
-                                }
+                                },
                             ),
+                            "turn_detection": turn_detection,
                         }
                     )
                 )
                 while self.chat_client:
                     if not self.audio_queue.empty():
                         audio_data = self.audio_queue.get()
+                        print(f"audio_queue录音数据长度: {self.audio_queue.qsize()}")
                         await client.input_audio_buffer_append(
                             InputAudioBufferAppendEvent.Data.model_validate(
                                 {
@@ -337,14 +369,14 @@ class ModernAudioChatGUI:
                                 }
                             )
                         )
-                    await asyncio.sleep(0.1)
+                    await asyncio.sleep(0.01)
 
         asyncio.run_coroutine_threadsafe(start(), self.loop)
 
     def resume_recording(self):
         # 重新开始录音
         self.start_recording()
-        self.send_button.config(state=tk.NORMAL)
+        self.start_button.config(state=tk.NORMAL)
         self.status_label.config(text="正在录音...")
 
     def complete_audio(self):
@@ -403,17 +435,6 @@ class ModernAudioChatGUI:
             # 短暂休眠以避免CPU过载
             time.sleep(0.001)
 
-    def send_audio(self):
-        # 停止录音
-        self.stop_recording()
-
-        # 禁用发送按钮
-        self.send_button.config(state=tk.DISABLED)
-        self.status_label.config(text="正在发送...")
-        self.update_chat_display("发送语音消息", is_user=True)
-
-        # 发送完成事件
-        self.loop.call_soon_threadsafe(self.complete_audio)
 
 
 def main():
