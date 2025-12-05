@@ -57,6 +57,7 @@ def get_coze_api_token(workspace_id: Optional[str] = None) -> str:
 coze = Coze(auth=TokenAuth(token=get_coze_api_token()), base_url=get_coze_api_base())
 # Create a bot instance in Coze, copy the last number from the web link as the bot's ID.
 bot_id = os.getenv("COZE_BOT_ID")
+# bot_id = "7554327088040362020"
 # The user id identifies the identity of a user. Developers can use a custom business ID
 # or a random string.
 user_id = "python_test"
@@ -76,7 +77,7 @@ class LocalPluginMocker(object):
     @staticmethod
     def robot_navigate(target_json: str):
         # mock sleeping
-        target = json.loads(target_json).get("target")
+        target = json.loads(target_json).get("nav_target")
         logging.info(f"navigation started to target: {target}")
         #time.sleep(1)
         logging.info("navigation finished, cost 5 seconds")
@@ -102,6 +103,10 @@ class LocalPluginMocker(object):
         else:
             logging.info("cancel 其他任务")
         return "success"
+    
+    @staticmethod
+    def chat_cancel():
+        return "success"
 
     @staticmethod
     def get_function(name: str):
@@ -109,6 +114,7 @@ class LocalPluginMocker(object):
             "robot_report": LocalPluginMocker.robot_report,
             "robot_navigate": LocalPluginMocker.robot_navigate,
             "robot_cancel": LocalPluginMocker.robot_cancel,
+            "chat_cancel": LocalPluginMocker.chat_cancel,
         }[name]
 
 
@@ -118,6 +124,7 @@ def handle_stream(stream: Stream[ChatEvent]):
     conversation_id = ''
     start = time.time()
     for event in stream:
+        first_replay_time = time.time()
         if event.chat != None:
             conversation_id = event.chat.conversation_id
         if event.event == ChatEventType.CONVERSATION_MESSAGE_DELTA:
@@ -126,6 +133,7 @@ def handle_stream(stream: Stream[ChatEvent]):
             logging.info(f"message: {event.message.content}")
 
         if event.event == ChatEventType.CONVERSATION_CHAT_REQUIRES_ACTION:
+            first_replay_time = time.time()
             logging.info("action time cost %s seconds", time.time() - start)
             start = time.time()
             if not event.chat.required_action or not event.chat.required_action.submit_tool_outputs:
@@ -155,10 +163,11 @@ def handle_stream(stream: Stream[ChatEvent]):
             logging.info("token usage: %s", event.chat.usage.token_count)
 
 
-    return conversation_id
+    return conversation_id, first_replay_time
 
 
 robot_nivagation_status = None
+
 
 if __name__ == "__main__":
     # The intelligent entity will call LocalPluginMocker.get_schedule to obtain the schedule.
@@ -171,13 +180,16 @@ if __name__ == "__main__":
     result = {}
     total_count = len(inputs) * 2
     failed_count = 0
+    first_replay_time_list = []
+    finish_time_list = []
     for input in tqdm(inputs, desc="Processing", unit="input"):
         logging.info(f"=======>inputs: {input}<=========")
         conversation_id = ''
         mapping_start_message = input.get("start")
         mapping_stop_message = input.get("stop")
 
-        conversation_id = handle_stream(
+        start_time = time.time()
+        conversation_id, first_replay_time = handle_stream(
             coze.chat.stream(
                 bot_id=bot_id,
                 user_id=user_id,
@@ -188,12 +200,17 @@ if __name__ == "__main__":
             )
         )
 
+        first_replay_time_list.append(first_replay_time - start_time)
+        finish_time_list.append(time.time() - start_time)
+        logging.info(f"first_replay_time: {first_replay_time - start_time}, finish_time: {time.time() - start_time}")
+
         if robot_nivagation_status != "started":
             result[mapping_start_message] = "failed"
             failed_count += 1
             json.dump(result, open(result_json, "w", encoding="utf-8"), ensure_ascii=False, indent=4)
             
-        handle_stream(
+        start_time = time.time()
+        _, first_replay_time = handle_stream(
             coze.chat.stream(
                 bot_id=bot_id,
                 user_id=user_id,
@@ -203,6 +220,10 @@ if __name__ == "__main__":
                 conversation_id=conversation_id,
             )
         )
+        logging.info(f"first_replay_time: {first_replay_time - start_time}, finish_time: {time.time() - start_time}")
+
+        first_replay_time_list.append(first_replay_time - start_time)
+        finish_time_list.append(time.time() - start_time)
 
         if robot_nivagation_status != "stopped":
             result[mapping_stop_message] = "failed"
@@ -213,4 +234,6 @@ if __name__ == "__main__":
     result["total_count"] = total_count
     result["failed_count"] = failed_count
     result["success_rate"] = (total_count - failed_count) / total_count
+    result["first_replay_time_avg"] = sum(first_replay_time_list) / len(first_replay_time_list)
+    result["finish_time_avg"] = sum(finish_time_list) / len(finish_time_list)
     json.dump(result, open(result_json, "w", encoding="utf-8"), ensure_ascii=False, indent=4)

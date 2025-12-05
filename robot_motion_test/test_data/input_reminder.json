@@ -1,0 +1,182 @@
+[
+    {
+        "type": "reminder",
+        "message": "提醒我每天早上8点吃降压药",
+        "expected_keywords": ["提醒已设置成功", "早八点", "吃降压药"]
+    },
+    {
+        "type": "reminder",
+        "message": "每天早上9点提醒我喝水",
+        "expected_keywords": ["提醒已设置成功", "喝水"]
+    },
+    {
+        "type": "reminder",
+        "message": "每周一上午10点提醒我开会",
+        "expected_keywords": ["提醒已设置成功", "开会"]
+    },
+    {
+        "type": "reminder",
+        "message": "每个月1号中午12点提醒我交房租",
+        "expected_keywords": ["提醒已设置成功", "交房租"]
+    },
+    {
+        "type": "reminder",
+        "message": "提醒我每天晚上8点吃药",
+        "expected_keywords": ["提醒已设置成功", "吃药"]
+    },
+    {
+        "type": "reminder",
+        "message": "每周五下午5点提醒我做周报",
+        "expected_keywords": ["提醒已设置成功", "做周报"]
+    },
+    {
+        "type": "reminder",
+        "message": "每天中午12点提醒我吃午饭",
+        "expected_keywords": ["提醒已设置成功", "吃午饭"]
+    },
+    {
+        "type": "reminder",
+        "message": "工作日早上9点半提醒我站会",
+        "expected_keywords": ["提醒已设置成功", "站会"]
+    },
+    {
+        "type": "reminder",
+        "message": "每周末上午10点提醒我锻炼",
+        "expected_keywords": ["提醒已设置成功", "锻炼"]
+    },
+    {
+        "type": "reminder",
+        "message": "每天下午3点提醒我喝咖啡",
+        "expected_keywords": ["提醒已设置成功", "喝咖啡"]
+    },
+    {
+        "type": "memo_create",
+        "message": "帮我记一下，我的手机放在了床头柜上",
+        "expected_keywords": ["已记录到备忘录", "手机"]
+    },
+    {
+        "type": "memo_create",
+        "message": "记录一下，降压药放在电视柜的抽屉里",
+        "expected_keywords": ["已记录到备忘录", "降压药"]
+    },
+    {
+        "type": "memo_create",
+        "message": "帮我记住，眼镜放在客厅茶几上",
+        "expected_keywords": ["已记录到备忘录", "眼镜"]
+    },
+    {
+        "type": "memo_create",
+        "message": "记一下，钥匙挂在门口的挂钩上",
+        "expected_keywords": ["已记录到备忘录", "钥匙"]
+    },
+    {
+        "type": "memo_create",
+        "message": "帮我记录一下，遥控器放在沙发旁边",
+        "expected_keywords": ["已记录到备忘录", "遥控器"]
+    },
+    {
+        "type": "memo_create",
+        "message": "记住，充电器在书房的抽屉里",
+        "expected_keywords": ["已记录到备忘录", "充电器"]
+    },
+    {
+        "type": "memo_create",
+        "message": "帮我备忘一下，雨伞放在玄关柜子里",
+        "expected_keywords": ["已记录到备忘录", "雨伞"]
+    },
+    {
+        "type": "memo_create",
+        "message": "记录一下，口罩放在包里",
+        "expected_keywords": ["已记录到备忘录", "口罩"]
+    },
+    {
+        "type": "memo_create",
+        "message": "帮我记下来，药盒在冰箱旁边的柜子里",
+        "expected_keywords": ["已记录到备忘录", "药盒"]
+    },
+    {
+        "type": "memo_create",
+        "message": "记一下，银行卡在钱包里",
+        "expected_keywords": ["已记录到备忘录", "银行卡"]
+    },
+    {
+        "type": "memo_query",
+        "message": "我的手机放哪了？",
+        "expected_keywords": ["手机", "床头柜"]
+    },
+    {
+        "type": "memo_query",
+        "message": "我记了什么关于药的事情？",
+        "expected_keywords": ["药", "备忘录"]
+    },
+    {
+        "type": "memo_query",
+        "message": "查一下我的眼镜在哪",
+        "expected_keywords": ["眼镜"]
+    },
+    {
+        "type": "memo_query",
+        "message": "我最近记了什么备忘录？",
+        "expected_keywords": ["备忘录"]
+    },
+    {
+        "type": "memo_query",
+        "message": "钥匙放在哪里了？",
+        "expected_keywords": ["钥匙"]
+    },
+    {
+        "type": "memo_query",
+        "message": "看看关于充电器的备忘",
+        "expected_keywords": ["充电器"]
+    },
+    {
+        "type": "memo_query",
+        "message": "我的雨伞在哪儿？",
+        "expected_keywords": ["雨伞"]
+    },
+    {
+        "type": "memo_query",
+        "message": "查询一下遥控器的位置",
+        "expected_keywords": ["遥控器"]
+    },
+    {
+        "type": "memo_update",
+        "message": "我把眼镜换地方了，改成放在卧室书桌上",
+        "expected_keywords": ["备忘录已更新", "眼镜"]
+    },
+    {
+        "type": "memo_update",
+        "message": "更新一下，手机现在放在客厅沙发上",
+        "expected_keywords": ["备忘录已更新", "手机"]
+    },
+    {
+        "type": "memo_update",
+        "message": "修改备忘录，钥匙改成放在书房抽屉里",
+        "expected_keywords": ["备忘录已更新", "钥匙"]
+    },
+    {
+        "type": "memo_update",
+        "message": "调整一下，降压药现在放在床头柜上",
+        "expected_keywords": ["备忘录已更新", "降压药"]
+    },
+    {
+        "type": "memo_delete",
+        "message": "删除关于旧手机的那条备忘录",
+        "expected_keywords": ["备忘录已删除", "手机"]
+    },
+    {
+        "type": "memo_delete",
+        "message": "删掉眼镜位置的备忘",
+        "expected_keywords": ["备忘录已删除", "眼镜"]
+    },
+    {
+        "type": "memo_delete",
+        "message": "取消这条遥控器的备忘录",
+        "expected_keywords": ["备忘录已删除", "遥控器"]
+    },
+    {
+        "type": "memo_delete",
+        "message": "删除关于钥匙的记录",
+        "expected_keywords": ["备忘录已删除", "钥匙"]
+    }
+]

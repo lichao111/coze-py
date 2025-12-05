@@ -11,6 +11,7 @@
 | robot_cancel       | {"target": 1}                              | {"response": "建图任务已取消"}    | 结束任务，target=1：建图任务；target=2：导航任务；target=3：寻人任务；target=4：跟随任务  |
 | chat_cancel       | None                             | None    | 闲聊结束 |
 | open_app|{"target": 1 } | None | 打开应用，target=1：音乐；target=2：评书 |
+| create_reminder|{"cron_expression": "0 0 15 * * ? *", "task_content": "吃降压药" } |  {"response": "已成功创建提醒任务"}   | 创建提醒任务 |
 > 说明：所有入参均为 JSON 字符串，key 为 `target`。所有返回值均为 JSON 字符串，key 为 `response`。
 
 

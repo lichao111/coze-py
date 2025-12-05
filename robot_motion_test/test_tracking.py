@@ -85,6 +85,14 @@ class LocalPluginMocker(object):
         return "success"
 
     @staticmethod
+    def robot_tracking():
+        #time.sleep(1)
+        logging.info("tracking finished, cost 5 seconds")
+        global robot_tracking_status
+        robot_tracking_status = "started"
+        return "success"
+
+    @staticmethod
     def robot_cancel(task):
         # mock sleeping
         target = json.loads(task).get("target")

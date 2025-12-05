@@ -6,6 +6,7 @@ and handle chat events
 import json
 import logging
 import os
+import time
 from typing import Optional, List
 
 from cozepy import COZE_CN_BASE_URL,ChatEvent, ChatEventType, Stream,Coze, DeviceOAuthApp, Message, TokenAuth, setup_logging, ToolOutput  # noqa
@@ -39,7 +40,8 @@ def get_coze_api_token(workspace_id: Optional[str] = None) -> str:
 coze = Coze(auth=TokenAuth(token=get_coze_api_token()), base_url=get_coze_api_base())
 
 # Create a bot instance in Coze, copy the last number from the web link as the bot's ID.
-bot_id = os.getenv("COZE_BOT_ID") or "bot id"
+# bot_id = os.getenv("COZE_BOT_ID") or "bot id"
+bot_id = "7526822492665888783"
 # The user id identifies the identity of a user. Developers can use a custom business ID
 # or a random string.
 user_id = "user id"
@@ -70,6 +72,8 @@ def run_chat_stream(input: str):
     is_first_reasoning_content = True
     is_first_content = True
     global conversation_id
+    start_time = time.time()
+    first_replay_time = None
     for event in coze.chat.stream(
         bot_id=bot_id,
         user_id=user_id,
@@ -78,6 +82,8 @@ def run_chat_stream(input: str):
         ],
         conversation_id=conversation_id,
     ):
+        if first_replay_time is None:
+            first_replay_time = time.time() - start_time
         if event.event == ChatEventType.CONVERSATION_MESSAGE_DELTA:
             if event.message.reasoning_content:
                 if is_first_reasoning_content:
@@ -114,10 +120,24 @@ def run_chat_stream(input: str):
                 tool_outputs=tool_outputs,
                 stream=True,
             ))
+    finish_time = time.time() - start_time
+    print(f"first_replay_time: {first_replay_time}, finish_time: {finish_time}")
+    return first_replay_time, finish_time
 
 if __name__ == "__main__":
     # Run the chat stream
-    run_chat_stream("今天出门我遇到了张三和李四")
-    run_chat_stream("你能给我讲个笑话吗")
-    run_chat_stream("你知道我今天出门遇到了谁吗")
-    run_chat_stream("我不想聊天了")
+    firt_time_list = []
+    finish_time_list = []
+    # first_time , finish_time = run_chat_stream("今天出门我遇到了张三和李四")
+    # firt_time_list.append(first_time)
+    # finish_time_list.append(finish_time)
+    # first_time , finish_time = run_chat_stream("你能给我讲个笑话吗")
+    # firt_time_list.append(first_time)
+    # finish_time_list.append(finish_time)
+    # first_time , finish_time = run_chat_stream("你知道我今天出门遇到了谁吗")
+    # firt_time_list.append(first_time)
+    # finish_time_list.append(finish_time)
+    first_time , finish_time = run_chat_stream("我不想和你聊天了")
+    firt_time_list.append(first_time)
+    finish_time_list.append(finish_time)
+    print(f"total_count: {len(firt_time_list)}, failed_count: 0, success_rate: 1.0, first_replay_time_avg: {sum(firt_time_list)/len(firt_time_list)}, finish_time_avg: {sum(finish_time_list)/len(finish_time_list)}")

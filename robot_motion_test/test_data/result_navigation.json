@@ -1,13 +1,11 @@
 {
-    "帮我去餐厅。": "failed",
-    "去卫生间。": "failed",
-    "去会议室。": "failed",
-    "带我到茶水间。": "failed",
-    "前往影音室。": "failed",
-    "前往宠物房。": "failed",
-    "帮我去花房。": "failed",
-    "去温室。": "failed",
-    "total_count": 106,
-    "failed_count": 8,
-    "success_rate": 0.9245283018867925
+    "停止导航。": "failed",
+    "结束导航。": "failed",
+    "导航结束。": "failed",
+    "停止": "failed",
+    "total_count": 40,
+    "failed_count": 20,
+    "success_rate": 0.5,
+    "first_replay_time_avg": 1.6044738352298737,
+    "finish_time_avg": 5.789782375097275
 }
