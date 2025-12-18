@@ -21,24 +21,24 @@
     "记一下，银行卡在钱包里": "success",
     "我的手机放哪了？": "success",
     "我记了什么关于药的事情？": "success",
-    "查一下我的眼镜在哪": "failed",
+    "查一下我的眼镜在哪": "success",
     "我最近记了什么备忘录？": "success",
-    "钥匙放在哪里了？": "failed",
+    "钥匙放在哪里了？": "success",
     "看看关于充电器的备忘": "success",
-    "我的雨伞在哪儿？": "failed",
+    "我的雨伞在哪儿？": "success",
     "查询一下遥控器的位置": "success",
     "我把眼镜换地方了，改成放在卧室书桌上": "success",
     "更新一下，手机现在放在客厅沙发上": "success",
     "修改备忘录，钥匙改成放在书房抽屉里": "success",
     "调整一下，降压药现在放在床头柜上": "success",
-    "删除关于旧手机的那条备忘录": "success",
+    "删除关于旧手机的那条备忘录": "failed",
     "删掉眼镜位置的备忘": "success",
     "取消这条遥控器的备忘录": "success",
     "删除关于钥匙的记录": "success",
     "total_count": 36,
-    "success_count": 33,
-    "failed_count": 3,
-    "success_rate": 0.9166666666666666,
+    "success_count": 35,
+    "failed_count": 1,
+    "success_rate": 0.9722222222222222,
     "reminder_stats": {
         "total": 10,
         "success": 10,
@@ -51,8 +51,8 @@
     },
     "memo_query_stats": {
         "total": 8,
-        "success": 5,
-        "failed": 3
+        "success": 8,
+        "failed": 0
     },
     "memo_update_stats": {
         "total": 4,
@@ -61,14 +61,14 @@
     },
     "memo_delete_stats": {
         "total": 4,
-        "success": 4,
-        "failed": 0
+        "success": 3,
+        "failed": 1
     },
-    "first_replay_time_avg": 3.921825346739396,
-    "finish_time_avg": 5.590418663289812,
+    "first_replay_time_avg": 5.365404495826135,
+    "finish_time_avg": 6.979642788569133,
     "reminder_success_rate": 1.0,
     "memo_create_success_rate": 1.0,
-    "memo_query_success_rate": 0.625,
+    "memo_query_success_rate": 1.0,
     "memo_update_success_rate": 1.0,
-    "memo_delete_success_rate": 1.0
+    "memo_delete_success_rate": 0.75
 }
